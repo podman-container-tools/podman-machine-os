@@ -1,0 +1,277 @@
+name: "build"
+
+on:
+  workflow_call:
+
+permissions: {}
+
+env:
+  PODMAN_INSTALL_VERSION: 5.8.2
+
+jobs:
+  build:
+    name: "Image Build ${{ matrix.os.arch }}"
+    runs-on: ${{ matrix.os.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - runner: cncf-ubuntu-24-96-x86
+            arch: x86_64
+          - runner: cncf-ubuntu-24-96-arm
+            arch: aarch64
+    ## TODO build a custom image with all deps installed
+    container:
+      image: fedora:latest
+      # mount tmpfs and volumes so we do not have the overlay on top of overlay case
+      options: --privileged -v /dev:/dev -v /lib/modules:/lib/modules -v /var --tmpfs /run --tmpfs /tmp
+
+    env:
+      OUTDIR: outdir
+    steps:
+      # Needs to be done before checkout as we need to install git.
+      - name: Install Dependencies
+        run: dnf install -y git curl podman buildah zstd osbuild osbuild-tools osbuild-ostree xfsprogs e2fsprogs jq koji dosfstools e2fsprogs util-linux-core
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          submodules: recursive # this repo uses a submodule
+      - name: Build images
+        run: |
+          # add custom xfs call to not create a fs that cannot be mounted on the older runner kernel
+          cat >/usr/local/bin/mkfs.xfs <<EOF
+          #!/bin/bash
+          /usr/bin/mkfs.xfs -c options=/usr/share/xfsprogs/mkfs/lts_6.6.conf "\$@"
+          EOF
+          chmod +x /usr/local/bin/mkfs.xfs
+
+          # add getenforce to claim we support selinux even when we do not
+          # https://github.com/coreos/custom-coreos-disk-images/pull/30
+          cat >/usr/local/bin/getenforce <<EOF
+          #!/bin/bash
+          echo "Permissive"
+          EOF
+          chmod +x /usr/local/bin/getenforce
+
+          ./build.sh
+          mv $OUTDIR/podman-machine $OUTDIR/podman-machine.${{ matrix.os.arch }}.tar
+
+      # This is kinda annoying, we cannot upload all files as wildcards it then uploads all files in one zip.
+      # Which then means users would need to download all files at once to test a single disk image.
+      # Therefore upload files one by one.
+      - name: Upload qemu image as artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.0.1
+        with:
+          path: "${{ env.OUTDIR }}/podman-machine.${{ matrix.os.arch }}.qemu.qcow2.zst"
+          archive: false
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload applehv image as artifact
+        if: matrix.os.arch == 'aarch64' # we dp not build this image on x86 anymore
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.0.1
+        with:
+          path: "${{ env.OUTDIR }}/podman-machine.${{ matrix.os.arch }}.applehv.raw.zst"
+          archive: false
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload hyperV image as artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.0.1
+        with:
+          path: "${{ env.OUTDIR }}/podman-machine.${{ matrix.os.arch }}.hyperv.vhdx.zst"
+          archive: false
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload wsl image as artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.0.1
+        with:
+          path: "${{ env.OUTDIR }}/podman-machine.${{ matrix.os.arch }}.wsl.tar.zst"
+          archive: false
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload oci image as artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.0.1
+        with:
+          path: "${{ env.OUTDIR }}/podman-machine.${{ matrix.os.arch }}.tar"
+          archive: false
+          if-no-files-found: error
+          retention-days: 14
+
+  validate-linux:
+    needs: build
+    name: "Validate linux ${{ matrix.os.arch }}"
+    runs-on: ${{ matrix.os.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - runner: cncf-ubuntu-24-96-x86
+            arch: x86_64
+            goarch: amd64
+          # The arm runners do not support nested virt yet
+          # - runner: cncf-ubuntu-24-96-arm
+          #  arch: aarch64
+          #  goarch: arm64
+    env:
+      MACHINE_IMAGE: podman-machine.${{ matrix.os.arch }}.qemu.qcow2.zst
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version: 'stable'
+          cache: false
+      - name: Download image artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ env.MACHINE_IMAGE }}
+
+      - name: "Install gvproxy"
+        run: |
+          sudo mkdir -p /usr/local/libexec/podman/
+          sudo curl --fail -L -o /usr/local/libexec/podman/gvproxy https://github.com/containers/gvisor-tap-vsock/releases/latest/download/gvproxy-linux-${{ matrix.os.goarch }}
+          sudo chmod +x /usr/local/libexec/podman/gvproxy
+
+      - name: "Install dependencies"
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-system virtiofsd
+          sudo ln -sfr /usr/libexec/virtiofsd /usr/local/libexec/podman/virtiofsd
+
+      # The default podman ship in ubuntu comes with an old unsupported registries.conf v1 format,
+      # just remove it as we need no special config.
+      - name: "Configure registries.conf"
+        run: |
+          sudo rm -f /etc/containers/registries.conf
+
+      # podman-machine needs kvm access
+      - name: "Fix kvm permissions"
+        run: |
+          sudo chmod 666 /dev/kvm
+
+      - name: Install podman
+        run: |
+          curl --fail -L \
+             https://github.com/containers/podman/releases/download/v$PODMAN_INSTALL_VERSION/podman-remote-static-linux_${{ matrix.os.goarch }}.tar.gz |
+          tar -xvz
+
+          mv bin/podman-remote-static-linux_${{ matrix.os.goarch }} bin/podman-remote
+
+      - name: build ginkgo
+        run: |
+          mkdir -p bin
+          cd verify
+          go build -o ../bin/ginkgo ./vendor/github.com/onsi/ginkgo/v2/ginkgo
+          ../bin/ginkgo version
+      - name: run verify tests
+        run: |
+          cd verify
+          export PODMAN_BINARY=../bin/podman-remote
+          export MACHINE_IMAGE_PATH="../$MACHINE_IMAGE"
+          ../bin/ginkgo -v
+
+  validate-windows:
+    needs: build
+    name: Validate windows ${{ matrix.provider.name }}
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 20
+    permissions: {}
+    strategy:
+      fail-fast: false
+      matrix:
+        provider:
+          - name: hyperv
+            filetype: vhdx
+          - name: wsl
+            filetype: tar
+    env:
+      CONTAINERS_MACHINE_PROVIDER: ${{ matrix.provider.name }}
+      PROVIDER: ${{ matrix.provider.name }}
+      MACHINE_IMAGE: podman-machine.x86_64.${{ matrix.provider.name }}.${{ matrix.provider.filetype }}.zst
+    steps:
+      - name: Configure git line endings
+        shell: pwsh
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c  # v6.4.0
+        with:
+          go-version: 'stable'
+          cache: false
+
+      - name: install podman
+        shell: pwsh
+        run: hack\ci\windows_setup.ps1
+
+      - name: Download image artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ env.MACHINE_IMAGE }}
+
+      - name: run verify tests
+        shell: pwsh
+        run: hack\ci\win-verify.ps1
+
+  validate-macos:
+    needs: build
+    name: Validate macos ${{ matrix.provider }}
+    runs-on:
+      group: mac-pool
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        provider: [applehv, libkrun]
+    env:
+      PROVIDER: ${{ matrix.provider }}
+      CONTAINERS_MACHINE_PROVIDER: ${{ matrix.provider }}
+      MACHINE_IMAGE: podman-machine.aarch64.applehv.raw.zst
+      # machine_test.go rejects TMPDIR >= 22 chars on darwin (socket path budget).
+      TMPDIR: /private/tmp/ci
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c  # v6.4.0
+        with:
+          go-version: 'stable'
+          cache: false
+
+      - name: Pre-clean machine state
+        run: ./hack/ci/gha_mac_cleanup.sh
+
+      - name: Install Dependencies
+        run: |
+          git clone --depth 1 --branch v${PODMAN_INSTALL_VERSION} https://github.com/podman-container-tools/podman.git
+          make -C podman podman-remote
+          ./podman/bin/darwin/podman --version
+          mkdir bin
+          cd verify
+          go build -o ../bin/ginkgo ./vendor/github.com/onsi/ginkgo/v2/ginkgo
+
+      - name: Download image artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ env.MACHINE_IMAGE }}
+
+      - name: run verify tests
+        run: |
+          export MACHINE_IMAGE_PATH="../${MACHINE_IMAGE}"
+          export PODMAN_BINARY=../podman/bin/darwin/podman
+          source ./podman-rpm-info-vars.sh
+          ./bin/ginkgo -v ./verify
+
+      - name: Post-run cleanup
+        if: always()
+        run: ./hack/ci/gha_mac_cleanup.sh

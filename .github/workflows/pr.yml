@@ -1,0 +1,34 @@
+name: PR
+
+on:
+  pull_request:
+    branches:
+      - main
+      - v*
+
+concurrency:
+  group: pr-checks-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+
+# Merge protection is setup for this job name, do not change it.
+  success:
+    name: "Total Success"
+    if: always()
+    needs:
+      - build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check all required jobs
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]] || \
+             [[ "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "One or more required jobs failed or were cancelled"
+            exit 1
+          fi
+          echo "All required jobs passed or were skipped"

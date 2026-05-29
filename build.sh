@@ -16,7 +16,7 @@ case "${PODMAN_PR_NUM}" in
 esac
 
 # koji tags prepend "f" to the release (rpm --eval)
-FEDORA_VERSION="f"$(podman run --rm "$FCOS_BASE_IMAGE" rpm --eval '%{?fedora}')
+FEDORA_VERSION="f"$(podman run --cgroups=disabled --rm "$FCOS_BASE_IMAGE" rpm --eval '%{?fedora}')
 export FEDORA_VERSION
 
 mkdir -p ./rpms
@@ -85,6 +85,8 @@ rpm-ostree compose build-chunked-oci --bootc --from "${FULL_IMAGE_NAME_ARCH}" --
 echo "Saving image from image store to filesystem"
 
 podman save --format oci-archive -o "${OUTDIR}/${DISK_IMAGE_NAME}" "${FULL_IMAGE_NAME_ARCH}"
+
+echo "getenforce $(getenforce)"
 
 echo "Transforming OCI image into disk image"
 pushd "$OUTDIR" && sh "$SRCDIR"/custom-coreos-disk-images/custom-coreos-disk-images.sh \

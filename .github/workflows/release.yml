@@ -1,0 +1,86 @@
+name: "release"
+
+on:
+  push:
+    branches:
+      - main
+      # Note for other branches (i.e. release branches we do not want pushes by default), only tags should rebuild images there.
+    tags:
+      - 'v*'
+
+permissions: {}
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+
+  publish:
+    # use a larger runner in hope of better network speeds
+    runs-on: cncf-ubuntu-16-64-x86
+    needs: [build]
+    timeout-minutes: 60
+    container:
+      image: fedora:latest
+      options: --privileged
+    permissions:
+      contents: write
+    env:
+      OUTDIR: outdir
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install Dependencies
+        run: dnf install -y git podman buildah gh
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: ${{ env.OUTDIR }}
+          merge-multiple: true
+
+      - name: Push to quay.io
+        env:
+          QUAY_USER: ${{ secrets.QUAY_USER }}
+          QUAY_PASSWORD: ${{ secrets.QUAY_PASSWORD }}
+          BRANCH: ${{ github.ref_name }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+        run: |
+          source ./gather.sh
+          podman images
+          podman login -u "$QUAY_USER" --password-stdin quay.io <<<"$QUAY_PASSWORD"
+          time podman manifest push --all "$FULL_IMAGE_NAME"
+          if [[ "$BRANCH" == "main" ]]; then
+              # When running on main push a "next" tag as well.
+              time podman manifest push --all "$FULL_IMAGE_NAME" "${FULL_IMAGE_NAME%:*}:next"
+          fi
+
+      - name: Create Github Release
+        if: github.ref_type == 'tag'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          if [[ "$VERSION" == *-rc* ]]; then
+              RC="--prerelease"
+          else
+              # check if this version should not be marked latest
+              prevvers=$(gh api repos/containers/podman-machine-os/releases/latest --jq '.tag_name')
+              echo "${prevvers},${VERSION}"
+              # sort -V -C returns 0 if args are ascending version order
+              if !(echo "${prevvers},${VERSION}" | tr ',' '\n' | sort -V -C)
+              then
+                  LATEST="--latest=false"
+              fi
+          fi
+
+          gh release create $VERSION \
+              -t $VERSION \
+              --notes "$VERSION release images" \
+              --verify-tag \
+              $RC \
+              $LATEST \
+              $OUTDIR/*
+
+      # TODO: missing podmabot token to remove label on podman release PR, but
+      # that is not that critical and could be done manual for now.
