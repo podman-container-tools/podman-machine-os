@@ -15,6 +15,11 @@ COPY podman-user-wait-network-online-override.conf /usr/lib/systemd/user/podman-
 # Configure our own systemd unit presets.
 COPY 00-podman-machine.preset /usr/lib/systemd/system-preset/00-podman-machine.preset
 
+# Add work around to fixup /etc/subuid /etc/subgid files.
+# https://github.com/containers/podman-machine-os/issues/226
+COPY fixup-subuid-subgid.service /usr/lib/systemd/system/fixup-subuid-subgid.service
+COPY 00-trigger-fixup-subuid-subgid.conf /usr/lib/systemd/system/user@.service.d/00-trigger-fixup-subuid-subgid.conf
+
 ## Enables automatic login on the console;
 ## there's no security concerns here, and this makes debugging easier.
 ## xref https://docs.fedoraproject.org/en-US/fedora-coreos/tutorial-autologin/

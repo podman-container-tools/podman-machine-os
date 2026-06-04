@@ -1,0 +1,10 @@
+[Unit]
+# https://github.com/containers/podman-machine-os/issues/226
+Description=Add missing newline to subuid and subgid files
+Before=user@.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# Always append final newline if missing.
+ExecStart=/usr/bin/sed -i -e "$$a\\" /etc/subuid /etc/subgid

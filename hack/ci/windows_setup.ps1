@@ -1,7 +1,6 @@
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
-New-Item -ItemType Directory -Force -Path "$ENV:CIRRUS_WORKING_DIR"
-Set-Location "$ENV:CIRRUS_WORKING_DIR"
+
 
 
 function download($uri, $file) {
@@ -20,9 +19,6 @@ function download($uri, $file) {
         }
     }
 }
-
-# Download the machine image from the previous build job
-download "${ENV:MACHINE_IMAGE_BASE_URL}${ENV:MACHINE_IMAGE}" "${ENV:MACHINE_IMAGE}"
 
 # Download and install podman
 $uri = "https://github.com/containers/podman/releases/download/v${ENV:PODMAN_INSTALL_VERSION}/podman-installer-windows-amd64.exe"
@@ -43,14 +39,6 @@ if ($ret.ExitCode -ne 0) {
     throw "Exit code is $($ret.ExitCode)"
 }
 Write-Host "Installation completed successfully!`n"
-
-Write-Host "Podman version"
-podman.exe --version
-
-Write-Host "Saving selection of CI env. vars."
-# Env. vars will not pass through win-sess-launch.ps1
-Get-ChildItem -Path "Env:\*" -include @("PATH", "PROVIDER", "MACHINE_IMAGE", "TEST_*", "CI_*") `
-  | Export-CLIXML "$ENV:TEMP\envars.xml"
 
 Write-Host "Installing ginkgo"
 Set-Location ".\verify"
