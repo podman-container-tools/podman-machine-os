@@ -73,8 +73,8 @@ else
     shopt -s nullglob
     FILE="/var/tmp/rpms/*.rpm"
     if [[ -n $(echo $FILE) ]]; then dnf update -y --best --allowerasing $FILE; fi
-    curl --fail -o /etc/yum.repos.d/podman-release-copr.repo https://copr.fedorainfracloud.org/coprs/packit/containers-podman-${PODMAN_PR_NUM}/repo/fedora-rawhide/packit-containers-podman-${PODMAN_PR_NUM}-fedora-rawhide.repo
-    curl --fail -o /etc/pki/rpm-gpg/podman-release-copr.gpg https://download.copr.fedorainfracloud.org/results/packit/containers-podman-${PODMAN_PR_NUM}/pubkey.gpg
+    curl --fail -o /etc/yum.repos.d/podman-release-copr.repo https://copr.fedorainfracloud.org/coprs/packit/podman-container-tools-podman-${PODMAN_PR_NUM}/repo/fedora-rawhide/packit-podman-container-tools-podman-${PODMAN_PR_NUM}-fedora-rawhide.repo
+    curl --fail -o /etc/pki/rpm-gpg/podman-release-copr.gpg https://download.copr.fedorainfracloud.org/results/packit/podman-container-tools-podman-${PODMAN_PR_NUM}/pubkey.gpg
     dnf install --best -y podman
 fi
 
