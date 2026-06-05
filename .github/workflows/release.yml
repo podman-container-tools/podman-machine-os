@@ -82,5 +82,14 @@ jobs:
               $LATEST \
               $OUTDIR/*
 
-      # TODO: missing podmabot token to remove label on podman release PR, but
-      # that is not that critical and could be done manual for now.
+      - name: Continue Podman Release
+        if: github.ref_type == 'tag'
+        env:
+          LABEL_TOKEN: ${{ secrets.PODMAN_RELEASE_LABEL_TOKEN }}
+        run: |
+          pr=$(sed -n '/^export PODMAN_PR_NUM/s/^[^"]*"\([^"]*\)"$/\1/p' podman-rpm-info-vars.sh)
+          if [[ $pr != "" ]]; then
+              gh auth login --with-token <<<"$LABEL_TOKEN"
+              gh pr edit --remove-label do-not-merge/wait-machine-os-build  https://github.com/podman-container-tools/podman/pull/$pr
+              gh auth logout
+          fi
