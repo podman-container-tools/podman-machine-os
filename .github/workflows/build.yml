@@ -39,9 +39,11 @@ jobs:
           submodules: recursive # this repo uses a submodule
       - name: Build images
         run: |
+          uname -a
           # add custom xfs call to not create a fs that cannot be mounted on the older runner kernel
           cat >/usr/local/bin/mkfs.xfs <<EOF
           #!/bin/bash
+          touch /tmp/test123
           /usr/bin/mkfs.xfs -c options=/usr/share/xfsprogs/mkfs/lts_6.6.conf "\$@"
           EOF
           chmod +x /usr/local/bin/mkfs.xfs
@@ -54,8 +56,14 @@ jobs:
           EOF
           chmod +x /usr/local/bin/getenforce
 
+          echo $PATH
+
           ./build.sh
           mv $OUTDIR/podman-machine $OUTDIR/podman-machine.${{ matrix.os.arch }}.tar
+
+      - name: dmesg
+        if: always()
+        run: dmesg && ls /tmp
 
       # This is kinda annoying, we cannot upload all files as wildcards it then uploads all files in one zip.
       # Which then means users would need to download all files at once to test a single disk image.
