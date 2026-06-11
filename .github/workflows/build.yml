@@ -40,13 +40,15 @@ jobs:
       - name: Build images
         run: |
           uname -a
-          # add custom xfs call to not create a fs that cannot be mounted on the older runner kernel
-          cat >/usr/local/bin/mkfs.xfs <<EOF
-          #!/bin/bash
           touch /tmp/test123
-          /usr/bin/mkfs.xfs -c options=/usr/share/xfsprogs/mkfs/lts_6.6.conf "\$@"
+          # add custom xfs call to not create a fs that cannot be mounted on the older runner kernel
+          # osbuild calls mkfs.xfs with absolute path, so we need to replace the binary itself
+          mv /usr/bin/mkfs.xfs /usr/bin/mkfs.xfs.real
+          cat >/usr/bin/mkfs.xfs <<EOF
+          #!/bin/bash
+          /usr/bin/mkfs.xfs.real -c options=/usr/share/xfsprogs/mkfs/lts_6.6.conf "\$@"
           EOF
-          chmod +x /usr/local/bin/mkfs.xfs
+          chmod +x /usr/bin/mkfs.xfs
 
           # add getenforce to claim we support selinux even when we do not
           # https://github.com/coreos/custom-coreos-disk-images/pull/30
