@@ -64,6 +64,8 @@ mkdir -p "$OUTDIR"
     --build-arg PODMAN_PR_NUM="${PODMAN_PR_NUM}" \
     --build-arg NETAVARK_PR_NUM="${NETAVARK_PR_NUM}" \
     --build-arg AARDVARK_DNS_PR_NUM="${AARDVARK_DNS_PR_NUM}" \
+    --build-arg CONTAINERS_COMMON_PR_NUM="${CONTAINERS_COMMON_PR_NUM}" \
+    --build-arg SKOPEO_PR_NUM="${SKOPEO_PR_NUM}" \
     --build-arg FEDORA_VERSION="${FEDORA_VERSION:1}"
 
     $ZSTD_CMD $tarfile
@@ -81,7 +83,9 @@ podman build -t "${FULL_IMAGE_NAME_ARCH}" -v "$PWD"/rpms:/var/tmp/rpms \
     --build-arg FCOS_BASE_IMAGE="${FCOS_BASE_IMAGE}" \
     --build-arg PODMAN_PR_NUM="${PODMAN_PR_NUM}" \
     --build-arg NETAVARK_PR_NUM="${NETAVARK_PR_NUM}" \
-    --build-arg AARDVARK_DNS_PR_NUM="${AARDVARK_DNS_PR_NUM}"
+    --build-arg AARDVARK_DNS_PR_NUM="${AARDVARK_DNS_PR_NUM}" \
+    --build-arg CONTAINERS_COMMON_PR_NUM="${CONTAINERS_COMMON_PR_NUM}" \
+    --build-arg SKOPEO_PR_NUM="${SKOPEO_PR_NUM}"
 
 # Use rpm-ostree rechunk to remove unwanted data/packages and save space where can
 echo "Re-Chunking to make incremental upgrades more efficient"

@@ -12,3 +12,5 @@ export PODMAN_PR_NUM=""
 # the fedora stable repos until f45
 export NETAVARK_PR_NUM="1464"
 export AARDVARK_DNS_PR_NUM="706"
+export CONTAINERS_COMMON_PR_NUM="864"
+export SKOPEO_PR_NUM="2881"

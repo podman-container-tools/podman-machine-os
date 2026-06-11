@@ -89,15 +89,16 @@ else
     if [[ -n $(echo $FILE) ]]; then dnf update -y --best --allowerasing $FILE; fi
     curl --fail -o /etc/yum.repos.d/podman-release-copr.repo https://copr.fedorainfracloud.org/coprs/packit/podman-container-tools-podman-${PODMAN_PR_NUM}/repo/fedora-rawhide/packit-podman-container-tools-podman-${PODMAN_PR_NUM}-fedora-rawhide.repo
     curl --fail -o /etc/pki/rpm-gpg/podman-release-copr.gpg https://download.copr.fedorainfracloud.org/results/packit/podman-container-tools-podman-${PODMAN_PR_NUM}/pubkey.gpg
-    dnf install --best -y podman
+    curl --fail -o /etc/yum.repos.d/netavark-release-copr.repo https://copr.fedorainfracloud.org/coprs/packit/containers-netavark-${NETAVARK_PR_NUM}/repo/fedora-rawhide/packit-containers-netavark-${NETAVARK_PR_NUM}-fedora-rawhide.repo
+    curl --fail -o /etc/pki/rpm-gpg/netavark-release-copr.gpg https://download.copr.fedorainfracloud.org/results/packit/containers-netavark-${NETAVARK_PR_NUM}/pubkey.gpg
+    curl --fail -o /etc/yum.repos.d/aardvark-dns-release-copr.repo https://copr.fedorainfracloud.org/coprs/packit/containers-aardvark-dns-${AARDVARK_DNS_PR_NUM}/repo/fedora-rawhide/packit-containers-aardvark-dns-${AARDVARK_DNS_PR_NUM}-fedora-rawhide.repo
+    curl --fail -o /etc/pki/rpm-gpg/aardvark-dns-release-copr.gpg https://download.copr.fedorainfracloud.org/results/packit/containers-aardvark-dns-${AARDVARK_DNS_PR_NUM}/pubkey.gpg
+    curl --fail -o /etc/yum.repos.d/containers-common-release-copr.repo https://copr.fedorainfracloud.org/coprs/packit/containers-container-libs-${CONTAINERS_COMMON_PR_NUM}/repo/fedora-rawhide/packit-containers-container-libs-${CONTAINERS_COMMON_PR_NUM}-fedora-rawhide.repo
+    curl --fail -o /etc/pki/rpm-gpg/containers-common-release-copr.gpg https://download.copr.fedorainfracloud.org/results/packit/containers-container-libs-${CONTAINERS_COMMON_PR_NUM}/pubkey.gpg
+    curl --fail -o /etc/yum.repos.d/skopeo-release-copr.repo https://copr.fedorainfracloud.org/coprs/packit/containers-skopeo-${SKOPEO_PR_NUM}/repo/fedora-rawhide/packit-containers-skopeo-${SKOPEO_PR_NUM}-fedora-rawhide.repo
+    curl --fail -o /etc/pki/rpm-gpg/skopeo-release-copr.gpg https://download.copr.fedorainfracloud.org/results/packit/containers-skopeo-${SKOPEO_PR_NUM}/pubkey.gpg
+    dnf install --best -y podman containers-common containers-common-extra netavark aardvark-dns skopeo
 fi
-
-curl --fail -o /etc/yum.repos.d/netavark-release-copr.repo https://copr.fedorainfracloud.org/coprs/packit/containers-netavark-${NETAVARK_PR_NUM}/repo/fedora-rawhide/packit-containers-netavark-${NETAVARK_PR_NUM}-fedora-rawhide.repo
-curl --fail -o /etc/pki/rpm-gpg/netavark-release-copr.gpg https://download.copr.fedorainfracloud.org/results/packit/containers-netavark-${NETAVARK_PR_NUM}/pubkey.gpg
-curl --fail -o /etc/yum.repos.d/aardvark-dns-release-copr.repo https://copr.fedorainfracloud.org/coprs/packit/containers-aardvark-dns-${AARDVARK_DNS_PR_NUM}/repo/fedora-rawhide/packit-containers-aardvark-dns-${AARDVARK_DNS_PR_NUM}-fedora-rawhide.repo
-curl --fail -o /etc/pki/rpm-gpg/aardvark-dns-release-copr.gpg https://download.copr.fedorainfracloud.org/results/packit/containers-aardvark-dns-${AARDVARK_DNS_PR_NUM}/pubkey.gpg
-
-dnf install --best -y netavark aardvark-dns
 
 # Install subscription-manager and enable service to refresh certificates
 # Install qemu-user-static for bootc/user emulation
