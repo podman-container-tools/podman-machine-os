@@ -40,11 +40,13 @@ jobs:
       - name: Build images
         run: |
           # add custom xfs call to not create a fs that cannot be mounted on the older runner kernel
-          cat >/usr/local/bin/mkfs.xfs <<EOF
+          # For some reason /usr/local/bin is not being recognized by osbuild so replace the actual binary
+          mv /usr/bin/mkfs.xfs /usr/bin/mkfs.xfs.real
+          cat >/usr/bin/mkfs.xfs <<EOF
           #!/bin/bash
-          /usr/bin/mkfs.xfs -c options=/usr/share/xfsprogs/mkfs/lts_6.6.conf "\$@"
+          /usr/bin/mkfs.xfs.real -c options=/usr/share/xfsprogs/mkfs/lts_6.6.conf "\$@"
           EOF
-          chmod +x /usr/local/bin/mkfs.xfs
+          chmod +x /usr/bin/mkfs.xfs
 
           # add getenforce to claim we support selinux even when we do not
           # https://github.com/coreos/custom-coreos-disk-images/pull/30
@@ -56,6 +58,11 @@ jobs:
 
           ./build.sh
           mv $OUTDIR/podman-machine $OUTDIR/podman-machine.${{ matrix.os.arch }}.tar
+
+      # just for debugging, i.e. when mounting failed.
+      - name: dmesg
+        if: always()
+        run: dmesg
 
       # This is kinda annoying, we cannot upload all files as wildcards it then uploads all files in one zip.
       # Which then means users would need to download all files at once to test a single disk image.
