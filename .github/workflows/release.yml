@@ -74,7 +74,7 @@ jobs:
               fi
           fi
 
-          gh release create $VERSION \
+          gh --repo "$REPO" release create $VERSION \
               -t $VERSION \
               --notes "$VERSION release images" \
               --verify-tag \
