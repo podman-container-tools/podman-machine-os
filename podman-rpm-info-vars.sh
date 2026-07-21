@@ -5,5 +5,5 @@
 # 2. Both PODMAN_VERSION and PODMAN_PR_NUM will have to be updated manually on release
 # PRs.
 # 3. If PODMAN_PR_NUM is empty, rpms will be fetched from the `rhcontainerbot/f44-podman6` copr.
-export PODMAN_VERSION="6.0.1"
-export PODMAN_PR_NUM="29152"
+export PODMAN_VERSION="6.0.2"
+export PODMAN_PR_NUM="29249"
