@@ -8,6 +8,8 @@ ARG AARDVARK_DNS_PR_NUM=${AARDVARK_DNS_PR_NUM}
 RUN --mount=type=bind,source=/build_common.sh,target=/run/build_common.sh,z \
     /run/build_common.sh
 
+COPY 999-podman-machine-wsl.conf /usr/share/containers/containers.conf.d/999-podman-machine-wsl.conf
+
 # Disable the systemd resolver, the unit cannot be disabled/ or masked
 # https://fedoraproject.org/wiki/Changes/systemd-resolved#Fully_opting_out_of_systemd-resolved_use
 # https://github.com/containers/podman-machine-os/issues/18
