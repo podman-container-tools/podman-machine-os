@@ -6,7 +6,7 @@ on:
 permissions: {}
 
 env:
-  PODMAN_INSTALL_VERSION: v6.0.2
+  PODMAN_INSTALL_VERSION: v6.1.0
 
 jobs:
   build:
