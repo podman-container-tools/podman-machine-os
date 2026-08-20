@@ -79,9 +79,9 @@ export FULL_IMAGE_NAME_ARCH="$FULL_IMAGE_NAME-${ARCH_TO_IMAGE_ARCH[$CPU_ARCH]}"
 
 # For released images we want the stable stream but for early testing in CI let's use the next stream.
 FCOS_STREAM="${FCOS_STREAM:-stable}"
-if [[ "$GITHUB_REF_NAME" == "main" || "$GITHUB_BASE_REF" == "main" ]]; then
-  FCOS_STREAM="next"
-fi
+#if [[ "$GITHUB_REF_NAME" == "main" || "$GITHUB_BASE_REF" == "main" ]]; then
+#  FCOS_STREAM="next"
+#fi
 
 FCOS_BASE_IMAGE="quay.io/fedora/fedora-coreos:$FCOS_STREAM"
 export FCOS_BASE_IMAGE
