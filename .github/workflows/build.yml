@@ -23,16 +23,13 @@ jobs:
             arch: aarch64
     ## TODO build a custom image with all deps installed
     container:
-      image: fedora:latest
+      image: ghcr.io/podman-container-tools/podman-machine-os-ci@sha256:fd402aaf0eebec21d476a211c0e588d6d56b307bbfb40e28768b35f71574a0ee # 20260819t094239z
       # mount tmpfs and volumes so we do not have the overlay on top of overlay case
       options: --privileged -v /dev:/dev -v /lib/modules:/lib/modules -v /var --tmpfs /run --tmpfs /tmp
 
     env:
       OUTDIR: outdir
     steps:
-      # Needs to be done before checkout as we need to install git.
-      - name: Install Dependencies
-        run: dnf install -y git curl podman buildah zstd osbuild osbuild-tools osbuild-ostree xfsprogs e2fsprogs jq koji dosfstools e2fsprogs util-linux-core
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
