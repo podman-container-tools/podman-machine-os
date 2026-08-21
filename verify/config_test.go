@@ -142,13 +142,18 @@ func (m *imageTestBuilder) run() (*machineSession, error) {
 	return runWrapper(podmanBinary, m.cmd, m.timeout, nil)
 }
 
-func (m *imageTestBuilder) initNowWithName() (string, *machineSession, error) {
+func (m *imageTestBuilder) initNowWithName(rootful bool) (string, *machineSession, error) {
 	machineName := randomString()
 	diskSize := defaultDiskSize
 	if m.diskSize > 0 {
 		diskSize = m.diskSize
 	}
-	cmdLine := []string{"machine", "init", "--now", "--image", m.imagePath, "--disk-size", strconv.Itoa(int(diskSize)), machineName}
+	optRootful := "--rootful=false"
+	if rootful {
+		optRootful = "--rootful"
+	}
+
+	cmdLine := []string{"machine", "init", "--now", "--image", m.imagePath, "--disk-size", strconv.Itoa(int(diskSize)), optRootful, machineName}
 	session, err := m.setName(machineName).setCmd(cmdLine).run()
 	return machineName, session, err
 }
