@@ -1,12 +1,18 @@
 package verify
 
 import (
+	"io"
+	"net/http"
 	"runtime"
+	"strings"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gexec"
 )
+
+const TESTIMAGE = "quay.io/libpod/testimage:20241011"
 
 var _ = Describe("run basic podman commands", func() {
 	var (
@@ -28,14 +34,13 @@ var _ = Describe("run basic podman commands", func() {
 		})
 	})
 
-	It("Basic ops", func() {
-		imgName := "quay.io/libpod/testimage:20241011"
-		machineName, session, err := mb.initNowWithName()
+	It("Basic ops rootless", func() {
+		machineName, session, err := mb.initNowWithName(false)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(session).To(Exit(0))
 
 		// Pull an image
-		pull := []string{"pull", imgName}
+		pull := []string{"pull", TESTIMAGE}
 		pullSession, err := mb.setCmd(pull).run()
 		Expect(err).ToNot(HaveOccurred())
 		Expect(pullSession).To(Exit(0))
@@ -46,18 +51,18 @@ var _ = Describe("run basic podman commands", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(checkImages).To(Exit(0))
 		Expect(len(checkImages.outputToStringSlice())).To(Equal(1))
-		Expect(checkImages.outputToStringSlice()).To(ContainElement(imgName))
+		Expect(checkImages.outputToStringSlice()).To(ContainElement(TESTIMAGE))
 
 		// Run simple container and check that host-gateway works
 		// https://github.com/containers/podman/issues/21681
-		runCmdDate := []string{"run", "-it", "--add-host=foobar123:host-gateway", imgName, "cat", "/etc/hosts"}
+		runCmdDate := []string{"run", "-it", "--add-host=foobar123:host-gateway", TESTIMAGE, "cat", "/etc/hosts"}
 		runCmdDateSession, err := mb.setCmd(runCmdDate).run()
 		Expect(err).ToNot(HaveOccurred())
 		Expect(runCmdDateSession).To(Exit(0))
 		Expect(runCmdDateSession.outputToString()).To(ContainSubstring("foobar123"))
 
 		// Run container in background
-		runCmdTop := []string{"run", "-dt", imgName, "top"}
+		runCmdTop := []string{"run", "-dt", TESTIMAGE, "top"}
 		runTopSession, err := mb.setCmd(runCmdTop).run()
 		Expect(err).ToNot(HaveOccurred())
 		Expect(runTopSession).To(Exit(0))
@@ -89,6 +94,14 @@ var _ = Describe("run basic podman commands", func() {
 		Expect(doubleCheckCmdSession).To(Exit(0))
 		Expect(len(doubleCheckCmdSession.outputToStringSlice())).To(Equal(0))
 
+		// pasta and bridge networks use different port forwarding logic, we must validate both
+		verifyNetworking(mb, false, "pasta", "8080")
+
+		networkCmdSession, err := mb.setCmd([]string{"network", "create", "--ipv6", "testnet"}).run()
+		Expect(err).ToNot(HaveOccurred())
+		Expect(networkCmdSession).To(Exit(0))
+		verifyNetworking(mb, false, "testnet", "8081")
+
 		// systemd-binfmt.service is failing to configure emulation, so we cannot test that there yet
 		// https://github.com/containers/podman/issues/19961
 		if vmTestProvider != WSLVirt {
@@ -105,14 +118,14 @@ var _ = Describe("run basic podman commands", func() {
 				expectedArch = "x86_64"
 			}
 			// quiet to not get the pull output
-			archCommand := []string{"run", "--quiet", "--platform", "linux/" + goArch, imgName, "arch"}
+			archCommand := []string{"run", "--quiet", "--platform", "linux/" + goArch, TESTIMAGE, "arch"}
 			archSession, err := mb.setCmd(archCommand).run()
 			Expect(err).ToNot(HaveOccurred())
 			Expect(archSession).To(Exit(0))
 			Expect(archSession.outputToString()).To(Equal(expectedArch))
 
 			// check that argv[0] is preserved
-			argvTestCommand := []string{"run", "--quiet", "--platform", "linux/" + goArch, imgName, "sh", "-c", "echo $0"}
+			argvTestCommand := []string{"run", "--quiet", "--platform", "linux/" + goArch, TESTIMAGE, "sh", "-c", "echo $0"}
 			argvSession, err := mb.setCmd(argvTestCommand).run()
 			Expect(err).ToNot(HaveOccurred())
 			Expect(argvSession).To(Exit(0))
@@ -134,10 +147,22 @@ var _ = Describe("run basic podman commands", func() {
 		Expect(removeMachineSession).To(Exit(0))
 	})
 
+	It("Basic networking rootful", func() {
+		_, session, err := mb.initNowWithName(true)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(session).To(Exit(0))
+
+		networkCmdSession, err := mb.setCmd([]string{"network", "create", "--ipv6", "testnet"}).run()
+		Expect(err).ToNot(HaveOccurred())
+		Expect(networkCmdSession).To(Exit(0))
+
+		verifyNetworking(mb, true, "testnet", "8082")
+	})
+
 	It("machine stop/start cycle", func() {
 		// We have seen an issue while stopping and starting machines again
 		// and then causing ssh failures on the second start. So test it.
-		machineName, session, err := mb.initNowWithName()
+		machineName, session, err := mb.initNowWithName(false)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(session).To(Exit(0))
 
@@ -152,3 +177,49 @@ var _ = Describe("run basic podman commands", func() {
 		Expect(startMachineSession).To(Exit(0))
 	})
 })
+
+func verifyNetworking(mb *imageTestBuilder, rootful bool, network string, port string) {
+	const containerName = "http"
+	// verify networking works
+	runCmd := []string{"run", "-d", "-p", port + ":80", "--network", network, "--name", containerName, TESTIMAGE, "/bin/busybox-extras", "httpd", "-f", "-p", "80"}
+	runCmdSession, err := mb.setCmd(runCmd).run()
+	Expect(err).ToNot(HaveOccurred())
+	Expect(runCmdSession).To(Exit(0))
+
+	// Small retry loop in the machine to ensure the http process is up and has bound the port
+	// Otherwise the go code below might connect to early.
+	for range 5 {
+		curlCmd := []string{"machine", "ssh", mb.name, "sudo", "curl", "http://127.0.0.1:" + port}
+		curlSession, err := mb.setCmd(curlCmd).run()
+		Expect(err).ToNot(HaveOccurred())
+		if curlSession.ExitCode() == 0 {
+			break
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	for _, name := range []string{"localhost", "127.0.0.1", "[::1]"} {
+		if rootful && vmTestProvider == WSLVirt && name == "[::1]" {
+			// on rootful WSL we do not support forwarding on ::1
+			continue
+		}
+		client := http.Client{
+			// USe a custom client with a low timeout to avoid longs hangs on errors
+			Timeout: 5 * time.Second,
+		}
+		// request known file in image
+		url := "http://" + name + ":" + port + "/testimage-id"
+		resp, err := client.Get(url)
+		Expect(err).ToNot(HaveOccurred(), url)
+		defer resp.Body.Close()
+		Expect(resp.StatusCode).To(Equal(http.StatusOK), url)
+		bytes, err := io.ReadAll(resp.Body)
+		Expect(err).ToNot(HaveOccurred(), url)
+		_, id, _ := strings.Cut(TESTIMAGE, ":")
+		Expect(string(bytes)).To(Equal(id+"\n"), url)
+	}
+
+	rmCmdSession, err := mb.setCmd([]string{"rm", "-f", "-t0", containerName}).run()
+	Expect(err).ToNot(HaveOccurred())
+	Expect(rmCmdSession).To(Exit(0))
+}

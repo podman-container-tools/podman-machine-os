@@ -20,7 +20,7 @@ var _ = Describe("run image tests", Ordered, ContinueOnFailure, func() {
 
 	BeforeAll(func() {
 		testDir, mb = setup()
-		machineName, session, err = mb.initNowWithName()
+		machineName, session, err = mb.initNowWithName(false)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(session).To(Exit(0))
 		DeferCleanup(func() {
