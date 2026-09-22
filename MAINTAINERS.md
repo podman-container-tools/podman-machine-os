@@ -18,7 +18,9 @@ Maintainers and Reviewers on other Podman Container Tools projects are found in 
 
 ## Alumni
 
-There are currently no alumni.
+| Maintainer        | GitHub ID                                                | Project Roles     | Affiliation                                  |
+|-------------------|----------------------------------------------------------|-------------------|----------------------------------------------|
+| Lokesh Mandvekar  | [lsm5](https://github.com/lsm5)                          | Maintainer        | [Red Hat](https://github.com/RedHatOfficial) |
 
 ## Credits
 
