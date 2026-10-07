@@ -1,0 +1,17 @@
+[Unit]
+# systemd only marks "/" as shared when it does not run in a container. In an
+# Apple container machine it is started in its own pid namespace by vminitd and
+# thus detects a container, while vminitd leaves the propagation private.
+# Podman needs a shared root for mount propagation into (rootless) containers.
+Description=Mark the root mount as shared
+DefaultDependencies=no
+Before=local-fs-pre.target sysinit.target
+ConditionVirtualization=container
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/mount --make-rshared /
+
+[Install]
+WantedBy=sysinit.target

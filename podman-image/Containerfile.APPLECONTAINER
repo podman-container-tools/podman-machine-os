@@ -1,0 +1,48 @@
+# Podman machine image for Apple container machines (`container machine`).
+#
+#   container build -t podman-machine-os -f podman-image/Containerfile.APPLECONTAINER podman-image
+#   container machine create podman-machine-os --name podman
+#
+# Like WSL an Apple container machine boots a root filesystem with a kernel that
+# is provided by the host tooling, so this is based on plain Fedora and not on
+# Fedora CoreOS. FEDORA_VERSION should match the one of the CoreOS base image.
+ARG FEDORA_VERSION=44
+FROM quay.io/fedora/fedora:${FEDORA_VERSION}
+
+ARG PODMAN_PR_NUM=""
+ARG NETAVARK_PR_NUM=""
+ARG AARDVARK_DNS_PR_NUM=""
+
+# Note there is no ",z" mount option here unlike in the other Containerfiles,
+# it is not supported by `container build` (BuildKit).
+RUN --mount=type=bind,source=/build_common.sh,target=/run/build_common.sh \
+    /run/build_common.sh
+
+# The machine execs /sbin/init and its create-user step depends on sudo. Both
+# are in the CoreOS base but are not guaranteed to be in the Fedora one.
+RUN dnf install -y --setopt=install_weak_deps=false systemd sudo && dnf -y clean all
+
+# There is no ignition, so enable the API sockets here (rootful and rootless).
+# The rpc_pipefs mount pulled in by nfs-utils-coreos always fails with the
+# kernel used by Apple container, mask it to not end up with a degraded system.
+RUN systemctl enable podman.socket && \
+    systemctl --global enable podman.socket && \
+    systemctl mask var-lib-nfs-rpc_pipefs.mount
+
+# Make "/" a shared mount as it is on the other providers.
+COPY apple-container-shared-root.service /usr/lib/systemd/system/apple-container-shared-root.service
+RUN systemctl enable apple-container-shared-root.service
+
+# File capabilities do not survive `container build`, so rootless podman cannot
+# set up the user namespace unless the id mapping tools are setuid instead.
+RUN chmod u+s /usr/bin/newuidmap /usr/bin/newgidmap
+
+# Hook called on first boot by the machine to create the user.
+COPY apple-container-create-user.sh /etc/machine/create-user.sh
+
+# Disable the systemd resolver, the unit cannot be disabled/ or masked
+# https://fedoraproject.org/wiki/Changes/systemd-resolved#Fully_opting_out_of_systemd-resolved_use
+# https://github.com/containers/podman-machine-os/issues/18
+# Unlike in the other Containerfiles /etc/resolv.conf is not removed, BuildKit
+# always mounts over it and the machine writes its own one on boot anyway.
+RUN rpm -e systemd-resolved
