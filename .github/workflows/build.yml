@@ -47,7 +47,7 @@ jobs:
       # Which then means users would need to download all files at once to test a single disk image.
       # Therefore upload files one by one.
       - name: Upload qemu image as artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           path: "${{ env.OUTDIR }}/podman-machine.${{ matrix.os.arch }}.qemu.qcow2.zst"
           archive: false
@@ -55,28 +55,28 @@ jobs:
           retention-days: 14
       - name: Upload applehv image as artifact
         if: matrix.os.arch == 'aarch64' # we dp not build this image on x86 anymore
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           path: "${{ env.OUTDIR }}/podman-machine.${{ matrix.os.arch }}.applehv.raw.zst"
           archive: false
           if-no-files-found: error
           retention-days: 14
       - name: Upload hyperV image as artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           path: "${{ env.OUTDIR }}/podman-machine.${{ matrix.os.arch }}.hyperv.vhdx.zst"
           archive: false
           if-no-files-found: error
           retention-days: 14
       - name: Upload wsl image as artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           path: "${{ env.OUTDIR }}/podman-machine.${{ matrix.os.arch }}.wsl.tar.zst"
           archive: false
           if-no-files-found: error
           retention-days: 14
       - name: Upload oci image as artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           path: "${{ env.OUTDIR }}/podman-machine.${{ matrix.os.arch }}.tar"
           archive: false
