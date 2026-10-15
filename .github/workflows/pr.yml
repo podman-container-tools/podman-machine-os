@@ -14,7 +14,7 @@ permissions: {}
 
 jobs:
   build:
-    uses: ./.github/workflows/build.yml
+    uses: $/.github/workflows/build.yml
 
 # Merge protection is setup for this job name, do not change it.
   success:
