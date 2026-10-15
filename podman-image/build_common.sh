@@ -129,7 +129,9 @@ PACKAGES=(
     cpp
 
     # git-core for Containerfile `ADD <gitrepo>` clone feature
+    # git-lfs to checkout LFS files from `<gitrepo>`
     git-core
+    git-lfs
 
     # Guest agent (vsock) for time sync and host-guest features (macOS vfkit/libkrun)
     qemu-guest-agent
