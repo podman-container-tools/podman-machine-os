@@ -59,7 +59,7 @@ PerSourcePenalties authfail:0
 
 # If many podman commands are run simultaneously, sshd may drop some of the
 # connections. There are no remote users so set the limit very high.
-MaxStartups 65535
+MaxStartups 65535:1:65535
 EOF
 
 ## Set delegate.conf so cpu,io subsystem is delegated to non-root users as well for cgroupv2
