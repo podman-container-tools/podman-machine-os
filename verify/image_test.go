@@ -241,7 +241,7 @@ var _ = Describe("run image tests", Ordered, ContinueOnFailure, func() {
 			sshSession, err := mb.setCmd([]string{"machine", "ssh", machineName, "sudo", "sshd", "-T"}).run()
 			Expect(err).ToNot(HaveOccurred())
 			Expect(sshSession).To(Exit(0))
-			Expect(sshSession.outputToString()).To(And(ContainSubstring("MaxStartups 65535:1:65535"), MatchRegexp("PerSourcePenalties .*authfail:0")))
+			Expect(sshSession.outputToString()).To(And(MatchRegexp("[Mm]ax[Ss]tartups 65535:1:65535"), MatchRegexp("[Pp]er[Ss]ource[Pp]enalties .*authfail:0")))
 		})
 
 		It("check podman coreos image version", func() {
