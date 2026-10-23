@@ -105,6 +105,8 @@ jobs:
     env:
       MACHINE_IMAGE: podman-machine.${{ matrix.os.arch }}.qemu.qcow2.zst
     steps:
+      - name: "remove slow azure mirror"
+        run: sudo sed -i '/azure/d' /etc/apt/apt-mirrors.txt
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
