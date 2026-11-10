@@ -13,7 +13,6 @@ Maintainers and Reviewers on other Podman Container Tools projects are found in 
 |-------------------|----------------------------------------------------------|-------------------|----------------------------------------------|
 | Ashley Cui        | [ashley-cui](https://github.com/ashley-cui)              | Maintainer        | [Red Hat](https://github.com/RedHatOfficial) |
 | Mario Loriedo     | [l0rd](https://github.com/l0rd/)                         | Maintainer        | [Red Hat](https://github.com/RedHatOfficial) |
-| Lokesh Mandvekar  | [lsm5](https://github.com/lsm5)                          | Maintainer        | [Red Hat](https://github.com/RedHatOfficial) |
 | Tim Zhou          | [timcoding1988](https://github.com/timcoding1988)        | Reviewer          | [Red Hat](https://github.com/RedHatOfficial) |
 
 ## Alumni
