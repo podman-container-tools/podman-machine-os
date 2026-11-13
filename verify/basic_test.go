@@ -53,6 +53,13 @@ var _ = Describe("run basic podman commands", func() {
 		Expect(len(checkImages.outputToStringSlice())).To(Equal(1))
 		Expect(checkImages.outputToStringSlice()).To(ContainElement(TESTIMAGE))
 
+		// Check podman.service runs with oom_score_adj=0
+		runCmdOOMScore := []string{"run", "--rm", TESTIMAGE, "cat", "/proc/self/oom_score_adj"}
+		runCmdOOMScoreSession, err := mb.setCmd(runCmdOOMScore).run()
+		Expect(err).ToNot(HaveOccurred())
+		Expect(runCmdOOMScoreSession).To(Exit(0))
+		Expect(runCmdOOMScoreSession.outputToString()).To(Equal("0"))
+
 		// Run simple container and check that host-gateway works
 		// https://github.com/containers/podman/issues/21681
 		runCmdDate := []string{"run", "-it", "--add-host=foobar123:host-gateway", TESTIMAGE, "cat", "/etc/hosts"}

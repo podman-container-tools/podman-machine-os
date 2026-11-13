@@ -6,9 +6,10 @@ mkdir -p /etc/systemd/system.conf.d \
          /etc/ssh/sshd_config.d \
          /etc/sysctl.d \
          /etc/chrony.d \
-         /etc/systemd/system/user@.service.d \
          /usr/share/containers/containers.conf.d \
-         /usr/share/containers/registries.conf.d
+         /usr/share/containers/registries.conf.d \
+         /usr/lib/systemd/system/user@.service.d \
+         /usr/lib/systemd/user/podman.service.d
 
 # Install config files
 
@@ -62,13 +63,22 @@ PerSourcePenalties authfail:0
 MaxStartups 65535:1:65535
 EOF
 
-## Set delegate.conf so cpu,io subsystem is delegated to non-root users as well for cgroupv2
-## by default
-cat >/etc/systemd/system/user@.service.d/delegate.conf <<EOF
+# Set delegate.conf so cpu,io subsystem is delegated to non-root users as well for cgroupv2
+# by default. Also ensure to keep OOMScoreAdjust 0 for the user sessions, ref
+# https://github.com/podman-container-tools/podman/pull/30243
+cat >/usr/lib/systemd/system/user@.service.d/delegate.conf <<EOF
 [Service]
 Delegate=memory pids cpu io
+OOMScoreAdjust=0
 EOF
 
+# We must also set the OOMScoreAdjust as part of the service again. As per
+# systemd-system.conf(5) DefaultOOMScoreAdjust, the user manager always adds
+# 100 to its score, to avoid this we need to explicitly ask for zero.
+cat >/usr/lib/systemd/user/podman.service.d/oom-override.conf <<EOF
+[Service]
+OOMScoreAdjust=0
+EOF
 
 # 1. For main branch builds, replace aardvark-dns, conmon, crun, netavark, podman, containers-common
 # 2. For release branch builds, fetch the build from the copr job on the podman
