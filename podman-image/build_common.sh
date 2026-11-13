@@ -6,9 +6,9 @@ mkdir -p /etc/systemd/system.conf.d \
          /etc/ssh/sshd_config.d \
          /etc/sysctl.d \
          /etc/chrony.d \
-         /etc/systemd/system/user@.service.d \
          /usr/share/containers/containers.conf.d \
          /usr/share/containers/registries.conf.d \
+         /usr/lib/systemd/system/user@.service.d \
          /usr/lib/systemd/user/podman.service.d
 
 # Install config files
@@ -66,7 +66,7 @@ EOF
 # Set delegate.conf so cpu,io subsystem is delegated to non-root users as well for cgroupv2
 # by default. Also ensure to keep OOMScoreAdjust 0 for the user sessions, ref
 # https://github.com/podman-container-tools/podman/pull/30243
-cat >/etc/systemd/system/user@.service.d/delegate.conf <<EOF
+cat >/usr/lib/systemd/system/user@.service.d/delegate.conf <<EOF
 [Service]
 Delegate=memory pids cpu io
 OOMScoreAdjust=0
