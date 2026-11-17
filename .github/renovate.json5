@@ -19,8 +19,8 @@ and/or use the pre-commit hook: https://github.com/renovatebot/pre-commit-hooks
 
   // Reuse predefined sets of configuration options to DRY
   "extends": [
-    // https://github.com/containers/automation/blob/main/renovate/defaults.json5
-    "github>containers/automation//renovate/defaults.json5"
+    // https://github.com/podman-container-tools/automation/blob/main/renovate/defaults.json5
+    "github>podman-container-tools/automation//renovate/defaults.json5"
   ],
 
   /*************************************************
