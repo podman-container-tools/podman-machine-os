@@ -26,11 +26,15 @@ jobs:
     runs-on: cncf-ubuntu-16-64-x86
     needs: [build]
     timeout-minutes: 60
+    environment:
+      name: quay
+      deployment: ${{ github.ref_type == 'tag' }}
     container:
       image: ghcr.io/podman-container-tools/podman-machine-os-ci:20261006t125107z@sha256:bb129c520d0148f363af50c07354d832d3268a60e2ee24f12dba40edbd0d0012
       options: --privileged
     permissions:
-      contents: write
+      contents: write # for release
+      id-token: write # OIDC token exchange for quay
     env:
       OUTDIR: outdir
     steps:
@@ -47,18 +51,30 @@ jobs:
       - name: Push to quay.io
         env:
           QUAY_USER: ${{ secrets.QUAY_USER }}
-          QUAY_PASSWORD: ${{ secrets.QUAY_PASSWORD }}
           BRANCH: ${{ github.ref_name }}
           GITHUB_RUN_ID: ${{ github.run_id }}
         run: |
           source ./gather.sh
           podman images
-          podman login -u "$QUAY_USER" --password-stdin quay.io <<<"$QUAY_PASSWORD"
+
+          # Obtain quay OIDC login token
+          set +x # Disable tracing (enabled in gather.sh) to avoid token logging
+          OIDC=$(curl -sSf -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+              "$ACTIONS_ID_TOKEN_REQUEST_URL" | jq -r -e .value)
+          echo "::add-mask::$OIDC"
+          QUAY_TOKEN=$(curl -sSf "https://quay.io/oauth2/federation/robot/token" \
+              -u "$QUAY_USER:$OIDC" | jq -r -e .token)
+          echo "::add-mask::$QUAY_TOKEN"
+          set -x
+          podman login -u "$QUAY_USER" --password-stdin quay.io <<<"$QUAY_TOKEN"
+
+          # Push images
           time podman manifest push --all "$FULL_IMAGE_NAME"
           if [[ "$BRANCH" == "main" ]]; then
               # When running on main push a "next" tag as well.
               time podman manifest push --all "$FULL_IMAGE_NAME" "${FULL_IMAGE_NAME%:*}:next"
           fi
+          podman logout quay.io
 
       - name: Create Github Release
         if: github.ref_type == 'tag'
